@@ -1,0 +1,19 @@
+{
+  "name": "multibot",
+  "version": "0.0.1",
+  "private": true,
+  "description": "api for working with several bots as with one",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "krolov",
+  "devDependencies": {
+    "eslint": "^5.2.0",
+    "eslint-config-google": "^0.9.1"
+  },
+  "dependencies": {
+    "request": "^2.87.0",
+    "telegraf": "^3.22.1"
+  }
+}
