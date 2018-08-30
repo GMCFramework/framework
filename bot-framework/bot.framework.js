@@ -221,7 +221,7 @@ class BotFramework {
         let data = JSON.parse(JSON.parse(context.message).data);
         obj.rawText = data.result;
         obj.action = data.result;
-        obj.text = data.result;
+        obj.text = data.result.substring(1);
         break;
       default:
         return next();
