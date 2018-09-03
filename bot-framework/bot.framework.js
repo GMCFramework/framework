@@ -2,42 +2,32 @@ const Telegraf = require('telegraf');
 const Markup = Telegraf.Markup;
 const Extra = Telegraf.Extra;
 const Gem = require('../bot-gem/gem');
-const addEndpoint = require('./addEndpoint');
 
 /**
  * class for mapping Telegram/Gem bots
  */
 class BotFramework {
-  constructor(botsSettings){
+  constructor(app, botsSettings) {
     this.botTelegram = new Telegraf(botsSettings.telegram.token);
-    if (botsSettings.telegram.getUser !== undefined) {
-      this.telegramGetUser = botsSettings.telegram.getUser;
-    }
-    if (botsSettings.gem.getUser !== undefined) {
-      this.gemGetUser = botsSettings.gem.getUser;
-    }
-    this.botGem = new Gem(botsSettings.gem.url, botsSettings.gem.token, botsSettings.endpoint);
-  } 
+    let gemSettings = botsSettings.gem;
+    this.botGem = new Gem(app, gemSettings.url, gemSettings.token, gemSettings.domain, gemSettings.endpoint);
+    this.callbacks = [];
+    this.midleware = null;
+  }
   /**
    * Add function to bot use
-   * @param {Object} func
+   * @param {Object} callback
    */
-  use(func) {
-    this.botTelegram.use((context, next) => {
-      return this._mapTelegram(context, next, func);
-    });
-
-    this.botGem.use((context, next) => {
-      return this._mapGem(context, next, func);
-    });
+  use(callback) {
+    this.callbacks.push(callback);
   }
 
-   /**
-   * Send message to user;
-   * @param {String} message
-   * @param {Object} ids
-   * @param {String} platform
-   */
+  /**
+  * Send message to user;
+  * @param {String} message
+  * @param {Object} ids
+  * @param {String} platform
+  */
   sendMessage(message, ids, platform = 'all') {
     // TODO: Put send message into framework interface
     let needTelegram = false;
@@ -58,7 +48,7 @@ class BotFramework {
       this.botTelegram.telegram.sendMessage(ids.telegramId, message, {
         parse_mode: 'Markdown',
         disable_web_page_preview: true,
-      }).catch(function(e) {
+      }).catch(function (e) {
       });
     }
     if (needGem && ids.gemId) {
@@ -66,11 +56,11 @@ class BotFramework {
     }
   }
 
-   /**
-   * Send photo to user
-   * @param {Object} ids
-   * @param {String} url
-   */
+  /**
+  * Send photo to user
+  * @param {Object} ids
+  * @param {String} url
+  */
   sendPhoto(url) {
     if (ids.telegramId) {
       this.botTelegram.telegram.sendPhoto(ids.telegramId, url);
@@ -80,17 +70,13 @@ class BotFramework {
     }
   }
 
- 
-
   /**
-   * Mapping telegram context
-   * @param {Object} context
-   * @param {Function} next
-   * @param {Object} func
-   * @return {Promise}
-   * @private
-   */
-  async _mapTelegram(context, next, func) {
+  * Mapping telegram context
+  * @param {Object} context
+  * @return {Promise}
+  * @private
+  */
+  async _mapTelegram(context) {
     let obj = {};
     switch (context.updateType) {
       case 'message':
@@ -113,14 +99,14 @@ class BotFramework {
         obj.from = context.update.callback_query.from.id;
         break;
       default:
-        return next();
+        return null;
     }
     obj.platform = 'telegram';
-    if (this.telegramGetUser !== undefined) {
-      obj.user = await this.telegramGetUser(obj.from);
+    if (this.midleware != null) {
+      await this.midleware(context, obj)
     }
     this._addTelegramContext(context, obj);
-    return func.use(obj, next);
+    return obj;
   }
 
 
@@ -204,7 +190,7 @@ class BotFramework {
    * @return {Promise}
    * @private
    */
-  async _mapGem(context, next, func) {
+  async _mapGem(context) {
     let obj = {};
     switch (context.messageType) {
       case 'RichText':
@@ -221,17 +207,18 @@ class BotFramework {
         let data = JSON.parse(JSON.parse(context.message).data);
         obj.rawText = data.result;
         obj.action = data.result;
-        obj.text = data.result.substring(1);
+        obj.text = data.result;
         break;
       default:
-        return next();
+        return null;
     }
+    obj.from = context['senderId'];
     obj.platform = 'gem';
-    if (this.gemGetUser !== undefined) {
-      obj.user = await this.gemGetUser(context['senderId']);
+    if (this.midleware != null) {
+      await this.midleware(context, object)
     }
     this._addGemContext(context, obj);
-    return func.use(obj, next);
+    return obj;
   }
 
   /**
@@ -317,20 +304,39 @@ class BotFramework {
     return buttons;
   }
 
+  async _goThruCallbacks(obj, next) {
+    if (obj == null) {
+      return next();
+    }
+   
+    let self = this;
+    let i = -1;
+    function getNext() {
+      i++;
+      if (i < self.callbacks.length) {
+        self.callbacks[i].use(obj, getNext);
+      } else {
+        next()
+      }
+    }
+    getNext();
+  }
+
+
   /**
    * Start polling
    */
   start() {
+    this.botTelegram.use(async (context, next) =>
+      this._goThruCallbacks(await this._mapTelegram(context), next)
+    );
+
+    this.botGem.use(async (context, next) => {
+      this._goThruCallbacks(await this._mapGem(context), next)
+    });
+
     this.botTelegram.startPolling();
     this.botGem.init();
-  }
-
-  setEndPoint(router){
-    return addEndpoint(router, (item) => {
-      let done = () => {
-      };
-      this.botGem.createPipe(item, done);
-    })
   }
 }
 
