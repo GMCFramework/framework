@@ -82,7 +82,9 @@ class GemPipe {
    * finish thread
    */
   end() {
-    this.done(this.request);
+    if (this.done) {
+      this.done(this.request);
+    }
   }
 }
 

@@ -1,5 +1,6 @@
 const request = require('request');
 const GemPipe = require('../bot-gem/gem.pipe');
+const bodyParser = require('body-parser');
 
 let inited = false;
 let pipeList = [];
@@ -14,11 +15,13 @@ let first = true;
 class GemBot {
   /**
    * Gem bot constructor
+   * @param {Object} app Express app
    * @param {string} url
    * @param {string} token
+   * @param {string} domain
    * @param {string} endpoint
    */
-  constructor(url, token, endpoint) {
+  constructor(app, url, token, domain, endpoint) {
     if (instance) {
       return instance;
     }
@@ -29,6 +32,27 @@ class GemBot {
     this.token = token;
     this.endpoint = endpoint;
     this.session = null;
+    this.domain = domain;
+
+    app.all(this.endpoint, (req, res) => {
+      function endpoint(req, res) {
+        if (req.body.messages !== undefined) {
+          console.log('Gem EndPoint');
+          console.log(req.body.messages);
+          for (let item of req.body.messages) {
+            this.createPipe(item);
+          }
+        }
+        res.send('ok');
+      }
+      // we already use body-parser or another parser
+      if (req.body) {
+        endpoint(req, res);
+      } else {
+        bodyParser.json()(req, res, () => endpoint(req, res));
+      }
+    });
+
   }
 
   /**
@@ -58,7 +82,7 @@ class GemBot {
     return new Promise((resolve) => {
       this._request('connectBot', {
         token: this.token,
-        remoteUrl: this.endpoint,
+        remoteUrl: this.domain + this.endpoint,
       })
         .then((result) => {
           this.session = result.session;
@@ -91,26 +115,26 @@ class GemBot {
       session: this.session,
       timestamp: new Date().getTime(),
     }).then(async (result) => {
-        let currentTimestamp = result['timestamp'];
-        if (result['messages'] !== undefined) {
-          if (result.messages.length) {
-            let i = 0;
-            for (let item of result['messages']) {
-              let done = () => {
-                i++;
-                if (i === result.messages.length) {
-                  this.confirmDelivery(currentTimestamp).then(() => {
-                    this._nextPolling();
-                  });
-                }
-              };
-              this.createPipe(item, done);
-            }
+      let currentTimestamp = result['timestamp'];
+      if (result['messages'] !== undefined) {
+        if (result.messages.length) {
+          let i = 0;
+          for (let item of result['messages']) {
+            let done = () => {
+              i++;
+              if (i === result.messages.length) {
+                this.confirmDelivery(currentTimestamp).then(() => {
+                  this._nextPolling();
+                });
+              }
+            };
+            this.createPipe(item, done);
           }
-        } else {
-          this._nextPolling();
         }
+      } else {
+        this._nextPolling();
       }
+    }
     );
   }
 
