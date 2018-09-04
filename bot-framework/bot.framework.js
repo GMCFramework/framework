@@ -7,10 +7,15 @@ const Gem = require('../bot-gem/gem');
  * class for mapping Telegram/Gem bots
  */
 class BotFramework {
-  constructor(app, botsSettings) {
-    this.botTelegram = new Telegraf(botsSettings.telegram.token);
-    let gemSettings = botsSettings.gem;
-    this.botGem = new Gem(app, gemSettings.url, gemSettings.token, gemSettings.domain, gemSettings.endpoint);
+  /**
+   * 
+   * @param {Object} options
+   * @param {Object} options.telegram
+   * @param {Object} options.gem
+   */
+  constructor({telegram, gem}) {
+    this.botTelegram = new Telegraf(telegram.token);
+    this.botGem = new Gem(gem.url, gem.token, gem.endpoint, gem.debug || false);
     this.callbacks = [];
     this.midleware = null;
   }
@@ -185,8 +190,6 @@ class BotFramework {
   /**
    * Mapping gem context
    * @param {Object} context
-   * @param {Function} next
-   * @param {Object} func
    * @return {Promise}
    * @private
    */
@@ -215,7 +218,7 @@ class BotFramework {
     obj.from = context['senderId'];
     obj.platform = 'gem';
     if (this.midleware != null) {
-      await this.midleware(context, object)
+      await this.midleware(context, obj)
     }
     this._addGemContext(context, obj);
     return obj;

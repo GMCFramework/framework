@@ -1,6 +1,5 @@
 const request = require('request');
 const GemPipe = require('../bot-gem/gem.pipe');
-const bodyParser = require('body-parser');
 
 let inited = false;
 let pipeList = [];
@@ -15,13 +14,12 @@ let first = true;
 class GemBot {
   /**
    * Gem bot constructor
-   * @param {Object} app Express app
    * @param {string} url
    * @param {string} token
-   * @param {string} domain
    * @param {string} endpoint
+   * @param {boolean} debug
    */
-  constructor(app, url, token, domain, endpoint) {
+  constructor(url, token, endpoint, debug = false) {
     if (instance) {
       return instance;
     }
@@ -32,27 +30,7 @@ class GemBot {
     this.token = token;
     this.endpoint = endpoint;
     this.session = null;
-    this.domain = domain;
-
-    app.all(this.endpoint, (req, res) => {
-      function endpoint(req, res) {
-        if (req.body.messages !== undefined) {
-          console.log('Gem EndPoint');
-          console.log(req.body.messages);
-          for (let item of req.body.messages) {
-            this.createPipe(item);
-          }
-        }
-        res.send('ok');
-      }
-      // we already use body-parser or another parser
-      if (req.body) {
-        endpoint(req, res);
-      } else {
-        bodyParser.json()(req, res, () => endpoint(req, res));
-      }
-    });
-
+    this.debug = debug;
   }
 
   /**
@@ -82,13 +60,15 @@ class GemBot {
     return new Promise((resolve) => {
       this._request('connectBot', {
         token: this.token,
-        remoteUrl: this.domain + this.endpoint,
+        remoteUrl: this.endpoint,
       })
         .then((result) => {
           this.session = result.session;
           if (first) {
-            console.log('token: ' + this.token);
-            console.log(result);
+            if (this.debug) {
+              console.debug('token: ' + this.token);
+              console.debug(result);
+            }
             first = false;
           }
           resolve();
@@ -277,9 +257,11 @@ class GemBot {
       };
       try {
         request(options, (error, response, body) => {
-          console.log('Gem request');
-          console.log('options', options);
-          console.log('body', body);
+          if (this.debug){
+            console.debug('Gem request');
+            console.debug('options', options);
+            console.debug('body', body);
+          }
           if (body !== undefined &&
             body.error !== undefined &&
             body.error.message !== undefined &&
