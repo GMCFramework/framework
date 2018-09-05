@@ -8,7 +8,7 @@ const Gem = require('../bot-gem/gem');
  */
 class BotFramework {
   /**
-   * 
+   *
    * @param {Object} options
    * @param {Object} options.telegram
    * @param {Object} options.gem
@@ -53,7 +53,7 @@ class BotFramework {
       this.botTelegram.telegram.sendMessage(ids.telegramId, message, {
         parse_mode: 'Markdown',
         disable_web_page_preview: true,
-      }).catch(function (e) {
+      }).catch(function(e) {
       });
     }
     if (needGem && ids.gemId) {
@@ -66,7 +66,7 @@ class BotFramework {
   * @param {Object} ids
   * @param {String} url
   */
-  sendPhoto(url) {
+  sendPhoto(ids, url) {
     if (ids.telegramId) {
       this.botTelegram.telegram.sendPhoto(ids.telegramId, url);
     }
@@ -108,7 +108,7 @@ class BotFramework {
     }
     obj.platform = 'telegram';
     if (this.midleware != null) {
-      await this.midleware(context, obj)
+      await this.midleware(context, obj);
     }
     this._addTelegramContext(context, obj);
     return obj;
@@ -181,7 +181,15 @@ class BotFramework {
     return Extra.markdown().markup((m) => {
       let ret = [];
       for (let item of inline) {
-        ret.push([m.callbackButton(item.title, item.id)]);
+        if (Array.isArray(item)) {
+          let several = [];
+          for (let i = 0; i < item.length; i++) {
+            several.push(m.callbackButton(item[i].title, item[i].id));
+          }
+          ret.push(several);
+        } else {
+          ret.push([m.callbackButton(item.title, item.id)]);
+        }
       }
       return m.inlineKeyboard(ret);
     });
@@ -200,9 +208,9 @@ class BotFramework {
         obj.type = 'text';
         obj.subtype = 'text';
         obj.text = JSON.parse(context.message)['Text'];
-        if (obj.text.substring(0, 1) === '/') {
-          obj.text = obj.text.substring(1);
-        }
+        // if (obj.text.substring(0, 1) === '/') {
+        //   obj.text = obj.text.substring(1);
+        // }
         break;
       case 'SPECIAL_RESULT_COMMAND':
         obj.type = 'text';
@@ -218,7 +226,7 @@ class BotFramework {
     obj.from = context['senderId'];
     obj.platform = 'gem';
     if (this.midleware != null) {
-      await this.midleware(context, obj)
+      await this.midleware(context, obj);
     }
     this._addGemContext(context, obj);
     return obj;
@@ -307,22 +315,22 @@ class BotFramework {
     return buttons;
   }
 
+  /**
+   * Go thru all callbacks
+   * @param {Obkect} obj
+   * @param {Function} next
+   * @return {Promise}
+   */
   async _goThruCallbacks(obj, next) {
-    if (obj == null) {
-      return next();
-    }
-   
-    let self = this;
-    let i = -1;
-    function getNext() {
-      i++;
-      if (i < self.callbacks.length) {
-        self.callbacks[i].use(obj, getNext);
-      } else {
-        next()
+    let goNext = true;
+    for (let i = 0; i < this.callbacks.length; i++) {
+      if (!goNext) {
+        break;
       }
+      goNext = false;
+      await this.callbacks[i].use(obj, () => goNext = true);
     }
-    getNext();
+    return next();
   }
 
 
@@ -335,7 +343,7 @@ class BotFramework {
     );
 
     this.botGem.use(async (context, next) => {
-      this._goThruCallbacks(await this._mapGem(context), next)
+      this._goThruCallbacks(await this._mapGem(context), next);
     });
 
     this.botTelegram.startPolling();
