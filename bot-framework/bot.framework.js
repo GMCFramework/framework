@@ -8,7 +8,7 @@ const Gem = require('../bot-gem/gem');
  */
 class BotFramework {
   /**
-   * 
+   *
    * @param {Object} options
    * @param {Object} options.telegram
    * @param {Object} options.gem
@@ -53,7 +53,7 @@ class BotFramework {
       this.botTelegram.telegram.sendMessage(ids.telegramId, message, {
         parse_mode: 'Markdown',
         disable_web_page_preview: true,
-      }).catch(function (e) {
+      }).catch(function(e) {
       });
     }
     if (needGem && ids.gemId) {
@@ -66,7 +66,7 @@ class BotFramework {
   * @param {Object} ids
   * @param {String} url
   */
-  sendPhoto(url) {
+  sendPhoto(ids, url) {
     if (ids.telegramId) {
       this.botTelegram.telegram.sendPhoto(ids.telegramId, url);
     }
@@ -108,7 +108,7 @@ class BotFramework {
     }
     obj.platform = 'telegram';
     if (this.midleware != null) {
-      await this.midleware(context, obj)
+      await this.midleware(context, obj);
     }
     this._addTelegramContext(context, obj);
     return obj;
@@ -218,7 +218,7 @@ class BotFramework {
     obj.from = context['senderId'];
     obj.platform = 'gem';
     if (this.midleware != null) {
-      await this.midleware(context, obj)
+      await this.midleware(context, obj);
     }
     this._addGemContext(context, obj);
     return obj;
@@ -307,19 +307,27 @@ class BotFramework {
     return buttons;
   }
 
+  /**
+   * Go thru all callbacks
+   * @param {Obkect} obj
+   * @param {Function} next
+   */
   async _goThruCallbacks(obj, next) {
     if (obj == null) {
       return next();
     }
-   
+
     let self = this;
     let i = -1;
+    /**
+     * Get next from callbacks list;
+     */
     function getNext() {
       i++;
       if (i < self.callbacks.length) {
         self.callbacks[i].use(obj, getNext);
       } else {
-        next()
+        next();
       }
     }
     getNext();
@@ -335,7 +343,7 @@ class BotFramework {
     );
 
     this.botGem.use(async (context, next) => {
-      this._goThruCallbacks(await this._mapGem(context), next)
+      this._goThruCallbacks(await this._mapGem(context), next);
     });
 
     this.botTelegram.startPolling();

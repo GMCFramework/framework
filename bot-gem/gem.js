@@ -257,7 +257,7 @@ class GemBot {
       };
       try {
         request(options, (error, response, body) => {
-          if (this.debug){
+          if (this.debug) {
             console.debug('Gem request');
             console.debug('options', options);
             console.debug('body', body);
