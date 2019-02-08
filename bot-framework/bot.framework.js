@@ -317,11 +317,15 @@ class BotFramework {
 
   /**
    * Go thru all callbacks
-   * @param {Obkect} obj
+   * @param {Object} obj
    * @param {Function} next
+// <<<<<<< HEAD
    * @return {Promise}
    */
   async _goThruCallbacks(obj, next) {
+    if (obj == null) {
+      return next();
+    }
     let goNext = true;
     for (let i = 0; i < this.callbacks.length; i++) {
       if (!goNext) {
