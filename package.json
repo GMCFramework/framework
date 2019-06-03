@@ -9,11 +9,25 @@
   },
   "author": "smart-wallet-service",
   "devDependencies": {
-    "eslint": "^5.2.0",
+    "eslint": "^5.5.0",
     "eslint-config-google": "^0.9.1"
   },
   "dependencies": {
     "request": "^2.87.0",
     "telegraf": "^3.22.1"
+  },
+  "eslintConfig": {
+    "extends": "google",
+    "parserOptions": {
+      "ecmaVersion": 8
+    },
+    "rules": {
+      "max-len": [
+        "error",
+        {
+          "code": 140
+        }
+      ]
+    }
   }
 }

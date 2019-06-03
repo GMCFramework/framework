@@ -17,8 +17,9 @@ class GemBot {
    * @param {string} url
    * @param {string} token
    * @param {string} endpoint
+   * @param {boolean} debug
    */
-  constructor(url, token, endpoint) {
+  constructor(url, token, endpoint, debug = false) {
     if (instance) {
       return instance;
     }
@@ -29,6 +30,7 @@ class GemBot {
     this.token = token;
     this.endpoint = endpoint;
     this.session = null;
+    this.debug = debug;
   }
 
   /**
@@ -63,8 +65,10 @@ class GemBot {
         .then((result) => {
           this.session = result.session;
           if (first) {
-            console.log('token: ' + this.token);
-            console.log(result);
+            if (this.debug) {
+              console.debug('token: ' + this.token);
+              console.debug(result);
+            }
             first = false;
           }
           resolve();
@@ -91,26 +95,26 @@ class GemBot {
       session: this.session,
       timestamp: new Date().getTime(),
     }).then(async (result) => {
-        let currentTimestamp = result['timestamp'];
-        if (result['messages'] !== undefined) {
-          if (result.messages.length) {
-            let i = 0;
-            for (let item of result['messages']) {
-              let done = () => {
-                i++;
-                if (i === result.messages.length) {
-                  this.confirmDelivery(currentTimestamp).then(() => {
-                    this._nextPolling();
-                  });
-                }
-              };
-              this.createPipe(item, done);
-            }
+      let currentTimestamp = result['timestamp'];
+      if (result['messages'] !== undefined) {
+        if (result.messages.length) {
+          let i = 0;
+          for (let item of result['messages']) {
+            let done = () => {
+              i++;
+              if (i === result.messages.length) {
+                this.confirmDelivery(currentTimestamp).then(() => {
+                  this._nextPolling();
+                });
+              }
+            };
+            this.createPipe(item, done);
           }
-        } else {
-          this._nextPolling();
         }
+      } else {
+        this._nextPolling();
       }
+    }
     );
   }
 
@@ -253,9 +257,11 @@ class GemBot {
       };
       try {
         request(options, (error, response, body) => {
-          console.log('Gem request');
-          console.log('options', options);
-          console.log('body', body);
+          if (this.debug) {
+            console.debug('Gem request');
+            console.debug('options', options);
+            console.debug('body', body);
+          }
           if (body !== undefined &&
             body.error !== undefined &&
             body.error.message !== undefined &&
